@@ -25,36 +25,58 @@ def load_titanic_data():
 
 train_data, test_data = load_titanic_data()
 
+'''
+PassengerId: a unique identifier for each passenger
+Survived: that's the target, 0 means the passenger did not survive, while 1 means he/she survived.
+Pclass: passenger class.
+Name, Sex, Age: self-explanatory
+SibSp: how many siblings & spouses of the passenger aboard the Titanic.
+Parch: how many children & parents of the passenger aboard the Titanic.
+Ticket: ticket id
+Fare: price paid (in pounds)
+Cabin: passenger's cabin number
+Embarked: where the passenger embarked the Titanic
+'''
 print(train_data.head())
 
+# PassengerID를 인덱스로 설정
 train_data = train_data.set_index("PassengerId")
 test_data = test_data.set_index("PassengerId")
 
 print(train_data.info())
 
+# 여성의 연령 중앙값
 train_data[train_data["Sex"]=="female"]["Age"].median()
 
+# 분포 확인
 print(train_data.describe())
 
-train_data["Survived"].value_counts()
+print(train_data["Survived"].value_counts())
 
-train_data["Pclass"].value_counts()
+print(train_data["Pclass"].value_counts())
 
-train_data["Sex"].value_counts()
+print(train_data["Sex"].value_counts())
 
-train_data["Embarked"].value_counts()
+'''
+C: Cherbourg
+Q: Queenstown
+S: Southampton
+'''
+print(train_data["Embarked"].value_counts())
 
+
+# 숫자형 데이터 전처리: 비어있는 값 중앙값으로 대체 및 스케일링
 num_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
         ("scaler", StandardScaler())
 ])
 
+# 범주형 데이터 전처리: 순서형 인코딩 후 one-hot 인코딩
 cat_pipeline = Pipeline([
         ("ordinal_encoder", OrdinalEncoder()),
         ("imputer", SimpleImputer(strategy="most_frequent")),
         ("cat_encoder", OneHotEncoder(sparse_output=False)),
     ])
-
 
 
 num_attribs = ["Age", "SibSp", "Parch", "Fare"]
@@ -65,35 +87,38 @@ preprocess_pipeline = ColumnTransformer([
         ("cat", cat_pipeline, cat_attribs),
     ])
 
+# 학습 데이터 전처리
 X_train = preprocess_pipeline.fit_transform(train_data)
 print(X_train)
 
+# Label
 y_train = train_data["Survived"]
 
+# Random Forest Classifier 사용 학습
 forest_clf = RandomForestClassifier(n_estimators=100, random_state=42)
 forest_clf.fit(X_train, y_train)
 
+# 테스트 데이터 전처리 및 예측
 X_test = preprocess_pipeline.transform(test_data)
 y_pred = forest_clf.predict(X_test)
 
+# 교차 검증
+# cv=10: 10-폴드 교차 검증, 데이터셋을 10개의 폴드로 나누고, 각 폴드를 한 번씩 검증용 데이터로 사용하여 총 10번의 학습과 평가 수행
 forest_scores = cross_val_score(forest_clf, X_train, y_train, cv=10)
 print(forest_scores.mean())
 
-
+# SVC: SVM 분류기 생성
+# gamma="auto" : 커널 함수에서 사용하는 감마 파라미터 1/n_features로 설정
 svm_clf = SVC(gamma="auto")
+
+# 교차 검증
 svm_scores = cross_val_score(svm_clf, X_train, y_train, cv=10)
 print(svm_scores.mean())
 
+# 그래프 생성
 plt.figure(figsize=(8, 4))
 plt.plot([1]*10, svm_scores, ".")
 plt.plot([2]*10, forest_scores, ".")
 plt.boxplot([svm_scores, forest_scores], labels=("SVM", "Random Forest"))
 plt.ylabel("Accuracy")
 plt.show()
-
-train_data["AgeBucket"] = train_data["Age"] // 15 * 15
-train_data[["AgeBucket", "Survived"]].groupby(['AgeBucket']).mean()
-
-train_data["RelativesOnboard"] = train_data["SibSp"] + train_data["Parch"]
-
-print(train_data[["RelativesOnboard", "Survived"]].groupby(['RelativesOnboard']).mean())

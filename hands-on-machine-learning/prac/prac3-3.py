@@ -46,7 +46,7 @@ test_data = test_data.set_index("PassengerId")
 print(train_data.info())
 
 # 여성의 연령 중앙값
-train_data[train_data["Sex"]=="female"]["Age"].median()
+print(train_data[train_data["Sex"]=="female"]["Age"].median())
 
 # 분포 확인
 print(train_data.describe())
